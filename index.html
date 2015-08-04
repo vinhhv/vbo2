@@ -55,7 +55,7 @@
         if (uUseTextures) {
             fragmentColor = texture2D(uSampler, vec2(vTextureCoord.s, vTextureCoord.t));
         } else {
-            fragmentColor = vec4(1.0, 1.0, 1.0, 1.0);
+        fragmentColor = vec4(1.0, 1.0, 1.0, 1.0);
         }
         gl_FragColor = vec4(fragmentColor.rgb * lightWeighting, fragmentColor.a);
     }
@@ -179,6 +179,7 @@
 
 
     function handleLoadedTexture(texture) {
+        document.getElementById("texture").innerHTML = texture;
         gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
         gl.bindTexture(gl.TEXTURE_2D, texture);
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, texture.image);
@@ -189,24 +190,8 @@
         gl.bindTexture(gl.TEXTURE_2D, null);
     }
 
-
-    var earthTexture;
-    var galvanizedTexture;
-
     function initTextures() {
-        earthTexture = gl.createTexture();
-        earthTexture.image = new Image();
-        earthTexture.image.onload = function () {
-            handleLoadedTexture(earthTexture)
-        }
-        earthTexture.image.src = "earth.jpg";
 
-        galvanizedTexture = gl.createTexture();
-        galvanizedTexture.image = new Image();
-        galvanizedTexture.image.onload = function () {
-            handleLoadedTexture(galvanizedTexture)
-        }
-        galvanizedTexture.image.src = "arroway.de_metal+structure+06_d100_flat.jpg";
     }
 
 
@@ -323,11 +308,15 @@
         teapotVertexNormalBuffer.itemSize = 3;
         teapotVertexNormalBuffer.numItems = teapotData.vertexNormals.length / 3;
 
+        document.getElementById("vNormals").innerHTML = teapotData.vertexNormals.length;
+
         teapotVertexTextureCoordBuffer = gl.createBuffer();
         gl.bindBuffer(gl.ARRAY_BUFFER, teapotVertexTextureCoordBuffer);
         gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(teapotData.vertexTextureCoords), gl.STATIC_DRAW);
         teapotVertexTextureCoordBuffer.itemSize = 2;
         teapotVertexTextureCoordBuffer.numItems = teapotData.vertexTextureCoords.length / 2;
+
+        document.getElementById("vTextures").innerHTML = teapotData.vertexTextureCoords.length;
 
         teapotVertexPositionBuffer = gl.createBuffer();
         gl.bindBuffer(gl.ARRAY_BUFFER, teapotVertexPositionBuffer);
@@ -335,11 +324,15 @@
         teapotVertexPositionBuffer.itemSize = 3;
         teapotVertexPositionBuffer.numItems = teapotData.vertexPositions.length / 3;
 
+        document.getElementById("vPositions").innerHTML = teapotData.vertexPositions.length;
+
         teapotVertexIndexBuffer = gl.createBuffer();
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, teapotVertexIndexBuffer);
         gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(teapotData.indices), gl.STATIC_DRAW);
         teapotVertexIndexBuffer.itemSize = 1;
         teapotVertexIndexBuffer.numItems = teapotData.indices.length;
+
+        document.getElementById("vIndices").innerHTML = teapotData.indices.length;
 
         document.getElementById("loadingtext").textContent = "";
     }
@@ -358,7 +351,9 @@
 
 
     var teapotAngle = 180;
-
+    var elapsedTime = 0;
+    var frameCount = 0;
+    var fpsLastTime = 0;
 
     function drawScene() {
         gl.viewport(0, 0, gl.viewportWidth, gl.viewportHeight);
@@ -368,44 +363,44 @@
             return;
         }
 
-        mat4.perspective(45, gl.viewportWidth / gl.viewportHeight, 0.1, 1000000000.0, pMatrix);
+        mat4.perspective(60, gl.viewportWidth / gl.viewportHeight, 1.0, 1000.0, pMatrix);
 
-        var specularHighlights = true;//document.getElementById("specular").checked;
+        var specularHighlights = true;
         gl.uniform1i(shaderProgram.showSpecularHighlightsUniform, specularHighlights);
 
-        var lighting = true;//document.getElementById("lighting").checked;
+        var lighting = true;
         gl.uniform1i(shaderProgram.useLightingUniform, lighting);
         if (lighting) {
             gl.uniform3f(
                 shaderProgram.ambientColorUniform,
-                0.2,//parseFloat(document.getElementById("ambientR").value),
-                0.2,//parseFloat(document.getElementById("ambientG").value),
-                0.2//parseFloat(document.getElementById("ambientB").value)
+                0.2,
+                0.2,
+                0.2
             );
 
             gl.uniform3f(
                 shaderProgram.pointLightingLocationUniform,
-                0.0,//parseFloat(document.getElementById("lightPositionX").value),
-                0.0,//parseFloat(document.getElementById("lightPositionY").value),
-                0.0//parseFloat(document.getElementById("lightPositionZ").value)
+                0.0,
+                0.0,
+                0.0
             );
 
             gl.uniform3f(
                 shaderProgram.pointLightingSpecularColorUniform,
-                1.000000,//parseFloat(document.getElementById("specularR").value),
-                0.980392,//parseFloat(document.getElementById("specularG").value),
-                0.549020//parseFloat(document.getElementById("specularB").value)
+                1.000000,
+                0.980392,
+                0.549020
             );
 
             gl.uniform3f(
                 shaderProgram.pointLightingDiffuseColorUniform,
-                0.929524,//parseFloat(document.getElementById("diffuseR").value),
-                0.796542,//parseFloat(document.getElementById("diffuseG").value),
-                0.178823//parseFloat(document.getElementById("diffuseB").value)
+                0.929524,
+                0.796542,
+                0.178823
             );
         }
 
-        var texture = "none";//document.getElementById("texture").value;
+        var texture = "none";
         gl.uniform1i(shaderProgram.useTexturesUniform, texture != "none");
 
         mat4.identity(mvMatrix);
@@ -416,14 +411,10 @@
         mat4.rotate(mvMatrix, degToRad(teapotAngle), [0, 1, 0]);
 
         gl.activeTexture(gl.TEXTURE0);
-        if (texture == "earth") {
-            gl.bindTexture(gl.TEXTURE_2D, earthTexture);
-        } else if (texture == "galvanized") {
-            gl.bindTexture(gl.TEXTURE_2D, galvanizedTexture);
-        }
+        
         gl.uniform1i(shaderProgram.samplerUniform, 0);
 
-        gl.uniform1f(shaderProgram.materialShininessUniform, 15.0);//parseFloat(document.getElementById("shininess").value));
+        gl.uniform1f(shaderProgram.materialShininessUniform, 15.0);
 
         gl.bindBuffer(gl.ARRAY_BUFFER, teapotVertexPositionBuffer);
         gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, teapotVertexPositionBuffer.itemSize, gl.FLOAT, false, 0, 0);
@@ -437,7 +428,24 @@
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, teapotVertexIndexBuffer);
         setMatrixUniforms();
         gl.drawElements(gl.TRIANGLES, teapotVertexIndexBuffer.numItems, gl.UNSIGNED_SHORT, 0);
+
+        var now = new Date().getTime();
+
+        frameCount++;
+        elapsedTime += (now - fpsLastTime);
+
+        fpsLastTime = now;
+
+        if (elapsedTime >= 1000) {
+            var fps = frameCount;
+            frameCount = 0;
+            elapsedTime -= 1000;
+            document.getElementById('fps').innerHTML = fps;
+        }
     }
+
+    fpsLastTime = new Date().getTime();
+    setInterval(drawScene, 33);
 
 
     var lastTime = 0;
@@ -504,65 +512,25 @@
     <div id="loadingtext">Loading world...</div>
     <br/>
 
-    <!--
-    <input type="checkbox" id="specular" checked /> Show specular highlight<br/>
-    <input type="checkbox" id="lighting" checked /> Use lighting<br/>
+    <div id="fps">
+    </div>
 
-    Texture:
-    <select id="texture">
-        <option selected value="none">None</option>
-        <option value="galvanized">Galvanized</option>
-        <option value="earth">Earth</option>
-    </select>
-    <br/>
+    <p>Texture</p>
+    <div id="texture">
+    </div>
 
-
-    <h2>Material:</h2>
-
-    <table style="border: 0; padding: 10px;">
-        <tr>
-            <td><b>Shininess:</b>
-            <td><input type="text" id="shininess" value="32.0" />
-        </tr>
-    </table>
-
-
-    <h2>Point light:</h2>
-
-    <table style="border: 0; padding: 10px;">
-        <tr>
-            <td><b>Location:</b>
-            <td>X: <input type="text" id="lightPositionX" value="0.0" />
-            <td>Y: <input type="text" id="lightPositionY" value="0.0" />
-            <td>Z: <input type="text" id="lightPositionZ" value="0.0" />
-        </tr>
-        <tr>
-            <td><b>Specular colour:</b>
-            <td>R: <input type="text" id="specularR" value="1.000000" />
-            <td>G: <input type="text" id="specularG" value="0.980392" />
-            <td>B: <input type="text" id="specularB" value="0.549020" />
-        </tr>
-        <tr>
-            <td><b>Diffuse colour:</b>
-            <td>R: <input type="text" id="diffuseR" value="0.929524" />
-            <td>G: <input type="text" id="diffuseG" value="0.796542" />
-            <td>B: <input type="text" id="diffuseB" value="0.178823" />
-        </tr>
-    </table>
-
-
-    <h2>Ambient light:</h2>
-
-    <table style="border: 0; padding: 10px;">
-        <tr>
-            <td><b>Colour:</b>
-            <td>R: <input type="text" id="ambientR" value="0.2" />
-            <td>G: <input type="text" id="ambientG" value="0.2" />
-            <td>B: <input type="text" id="ambientB" value="0.2" />
-        </tr>
-    </table>
-    <br/>
-    -->
+    <p>vPositions</p>
+    <div id="vPositions">
+    </div>
+    <p>vTextures</p>
+    <div id="vTextures")>
+    </div>
+    <p>vNormals</p>
+    <div id="vNormals">
+    </div>
+    <p>vIndices</p>
+    <div id="vIndices">
+    </div>
 </body>
 
 </html>
